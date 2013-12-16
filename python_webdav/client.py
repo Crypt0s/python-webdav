@@ -3,7 +3,7 @@ Client Module
 =============
 
 """
-import os
+import os,pdb
 import urllib2
 import python_webdav.connection as conn
 import python_webdav.file_wrapper as file_wrapper
@@ -45,7 +45,7 @@ while this top level module will hopefully aid in quicker development.
             dir_path = self.connection.path + '/' + dir_path
         self.connection.send_rmcol(dir_path)
 
-    def set_connection(self, username='', password=''):
+    def set_connection(self, username='', password='', domain=None, auth=None):
         """ Set up the connection object
 
             :param username: Username if authentication is required for the connection
@@ -55,8 +55,11 @@ while this top level module will hopefully aid in quicker development.
             :type password: String
 
         """
+        
         self._connection_settings['username'] = username
         self._connection_settings['password'] = password
+        self._connection_settings['domain'] = domain
+        self._connection_settings['auth'] = auth
         self.connection = conn.Connection(self._connection_settings)
         self.client = conn.Client()
 
@@ -161,6 +164,7 @@ while this top level module will hopefully aid in quicker development.
                 if symbol == 'E':
                     str_prop = str_prop.strip('"')
                 formatted_list.append(str_prop)
+            pdb.set_trace()
             property_lists.append(formatted_list)
             format_string = separator.join(formatted_list)
             if display:
