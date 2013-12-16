@@ -1,10 +1,11 @@
 """ Connection Module
 """
 import requests
-
 import python_webdav.parse
 import python_webdav.file_wrapper as file_wrapper
-
+# Requests ntlm is imported below only if the user wants to use NTLM in the application -- this is
+# in order to keep compatibility.
+#import requests_ntlm
 
 class Connection(object):
     """ Connection object
@@ -21,21 +22,28 @@ class Connection(object):
         self.username = settings['username']
         self.password = settings['password']
         self.realm = settings['realm']
+        self.domain = settings['domain']
         self.host = settings['host']
         self.path = settings['path']
         self.port = settings['port']
+        self.auth = settings['auth']
+        self.allow_bad_cert = settings['allow_bad_cert']
         self.locks = {}
 
-        # Optional setup
-        self.allow_bad_cert = settings.get('allow_bad_cert', False)
-        verify = not self.allow_bad_cert
-
         # Make an http object for this connection
-        #self.httpcon = httplib2.Http()
-        #self.httpcon.add_credentials(self.username, self.password)
         self.httpcon = requests.session()
-        self.httpcon.auth = (self.username, self.password)
-        self.httpcon.verify = verify
+
+        # set up some sort of AUTH -- NTLM works well with requests_ntlm extension.
+        if self.auth is None:
+            self.httpcon.auth = (self.username,self.password)
+        elif self.auth == "NTLM":
+            # Moved the import here in an attempt to keep compatibility in check -- might be a bad idea though.
+            import requests_ntlm
+            # we co-opt the use of REALM variable here as a stand-in for the domain -- no idea if this is a good idea but it sounds OK...
+            self.httpcon.auth = requests_ntlm.HttpNtlmAuth(self.realm+'\\'+self.username,self.password)
+
+        # Set the verification of certs on/off
+        self.httpcon.verify = not self.allow_bad_cert
 
     def _send_request(self, request_method, path, body='', headers=None,
                       callback=None):
@@ -60,8 +68,11 @@ class Connection(object):
             headers = {}
         uri = "%s/%s" % (self.host.rstrip('/'), path.lstrip('/'))
         try:
+            # Add the auth line here to pass the auth to the request
             resp = self.httpcon.request(request_method, uri,
-                                        data=body, headers=headers)
+                                        data=body, headers=headers, auth=self.httpcon.auth)
+            print uri
+            print headers
         except requests.ConnectionError:
             raise
 
